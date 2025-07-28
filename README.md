@@ -12,7 +12,8 @@ Ein Bash-Script, das dir in wenigen Minuten eine Entwicklungsumgebung auf Ubuntu
 * Installiert Basis-Tools wie `git`, `curl`, `python3`, `htop` usw.
 * Richtet automatisch die Zeitzone, Sprache & Updates ein
 * Installiert Docker + Docker Compose
-* Fragt dich, welche **Node.js-Version** du brauchst (z. B. 18, 20, 22, 23)
+* Optional: Portainer - Web-basiertes Docker-Management auf Port 9443
+* Fragt dich, welche Node.js-Version du brauchst (z. B. 18, 20, 22, 23)
 * Optional: Installiert [Deno](https://github.com/denoland/deno), [BMAD-METHOD](https://github.com/bmadcode/BMAD-METHOD), [Claude-Flow](https://github.com/ruvnet/claude-flow) und [Claude-Code](https://github.com/anthropics/claude-code)
 
 ---
