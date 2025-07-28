@@ -5,7 +5,6 @@
 # ===============================
 
 # Farben definieren
-tput civis
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -444,118 +443,6 @@ install_docker() {
     fi
 }
 
-# Portainer installieren
-install_portainer() {
-    if [[ "$INSTALL_PORTAINER" != "true" ]]; then
-        info "Portainer Installation übersprungen"
-        return
-    fi
-
-    info "Installiere Portainer..."
-
-    # Überprüfen ob Docker läuft
-    if ! systemctl is-active --quiet docker; then
-        error "Docker ist nicht aktiv. Portainer Installation abgebrochen."
-        return 1
-    fi
-
-    # Interne IP-Adresse ermitteln
-    start_spinner "Ermittle interne IP-Adresse"
-    local internal_ip=""
-    
-    # Verschiedene Methoden probieren um die interne IP zu finden
-    internal_ip=$(ip route get 8.8.8.8 2>/dev/null | grep -oP 'src \K\S+' 2>/dev/null)
-    
-    if [[ -z "$internal_ip" ]]; then
-        internal_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
-    fi
-    
-    if [[ -z "$internal_ip" ]]; then
-        internal_ip=$(ip addr show | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print $2}' | cut -d'/' -f1)
-    fi
-    
-    # Fallback zu localhost wenn keine IP gefunden
-    if [[ -z "$internal_ip" ]]; then
-        internal_ip="localhost"
-        stop_spinner
-        warning "Interne IP-Adresse konnte nicht ermittelt werden, verwende localhost"
-    else
-        stop_spinner
-        success "Interne IP-Adresse ermittelt: $internal_ip"
-    fi
-
-    # 1. Portainer Volume erstellen
-    start_spinner "Erstelle Portainer Data Volume"
-    if docker volume create portainer_data &>/dev/null; then
-        success "Portainer Volume erstellt"
-    else
-        stop_spinner
-        warning "Portainer Volume existiert bereits oder Fehler beim Erstellen"
-    fi
-
-    # 2. Portainer Container starten (auf allen Interfaces)
-    start_spinner "Lade Portainer Image herunter und starte Container"
-    if docker run -d \
-        --name portainer \
-        --restart=always \
-        -p 0.0.0.0:9443:9443 \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        -v portainer_data:/data \
-        portainer/portainer-ce:latest \
-        --ssl \
-        --sslcert /data/cert/portainer.crt \
-        --sslkey /data/key/portainer.key \
-        --bind :9443 &>/dev/null; then
-        success "Portainer Container gestartet"
-    else
-        stop_spinner
-        
-        # Falls Container bereits existiert, versuche ihn zu starten
-        if docker start portainer &>/dev/null; then
-            success "Existierender Portainer Container gestartet"
-        else
-            warning "Portainer Container konnte nicht gestartet werden"
-            return 1
-        fi
-    fi
-
-    # 3. Warten bis Portainer bereit ist
-    start_spinner "Warte auf Portainer-Start (kann bis zu 30 Sekunden dauern)"
-    local max_attempts=30
-    local attempt=0
-    
-    while [[ $attempt -lt $max_attempts ]]; do
-        if curl -k -s https://$internal_ip:9443 >/dev/null 2>&1; then
-            break
-        fi
-        sleep 1
-        attempt=$((attempt + 1))
-    done
-    
-    stop_spinner
-    
-    if [[ $attempt -lt $max_attempts ]]; then
-        success "Portainer ist bereit und läuft auf Port 9443"
-        info "Zugriff über: https://$internal_ip:9443 (Admin-Benutzer erstellen)"
-        if [[ "$internal_ip" != "localhost" ]]; then
-            info "Netzwerk-Zugriff: Von anderen Geräten im Netzwerk erreichbar"
-        fi
-    else
-        warning "Portainer wurde gestartet, aber ist möglicherweise noch nicht bereit"
-        info "Versuche in ein paar Minuten: https://$internal_ip:9443"
-    fi
-
-    # 4. Benutzer zur Docker-Gruppe hinzufügen (falls noch nicht geschehen)
-    if ! groups "$USERNAME" | grep -q docker; then
-        start_spinner "Füge Benutzer '$USERNAME' zur Docker-Gruppe hinzu"
-        usermod -aG docker "$USERNAME" &>/dev/null
-        success "Benutzer zur Docker-Gruppe hinzugefügt"
-    fi
-    
-    # 5. IP-Adresse für spätere Verwendung speichern
-    echo "$internal_ip" > /tmp/portainer_ip
-}
-
 # Node.js installieren
 install_nodejs() {
     info "Installiere Node.js Version $NODE_VERSION..."
@@ -927,7 +814,7 @@ verify_installation() {
     echo ""
     
     if [[ "$INSTALL_DENO" == "true" ]]; then
-        echo -e "${YELLOW}Deno Tipp:${NC} Deno ist unter $HOME/.deno/bin/deno verfügbar."
+        echo -e "${YELLOW}Deno Tipp:${NC} Deno ist unter /home/$USERNAME/.deno/bin/deno verfügbar."
     fi
 
     if [[ "$INSTALL_BMAD" == "true" ]]; then
