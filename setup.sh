@@ -34,6 +34,32 @@ INSTALL_BMAD="false"
 INSTALL_CLAUDE_CODE="false"
 INSTALL_CLAUDE_FLOW="false"
 
+# Cleanup-Funktion für sauberen Abbruch
+cleanup() {
+    # Cursor wieder einblenden falls versteckt
+    tput cnorm 2>/dev/null || true
+    # Spinner stoppen falls aktiv
+    if [[ ! -z "$SPINNER_PID" ]]; then
+        kill $SPINNER_PID 2>/dev/null || true
+    fi
+}
+
+# Trap für sauberen Abbruch
+trap cleanup EXIT INT TERM
+
+# Cleanup-Funktion für sauberen Abbruch
+cleanup() {
+    # Cursor wieder einblenden falls versteckt
+    tput cnorm 2>/dev/null || true
+    # Spinner stoppen falls aktiv
+    if [[ ! -z "$SPINNER_PID" ]]; then
+        kill $SPINNER_PID 2>/dev/null || true
+    fi
+}
+
+# Trap für sauberen Abbruch
+trap cleanup EXIT INT TERM
+
 # Verbesserte Spinner Funktionen
 start_spinner() {
     local msg="$1"
@@ -387,6 +413,7 @@ update_system() {
         "ca-certificates" "gnupg" "lsb-release"
     )
 
+		   
     for pkg in "${packages[@]}"; do
         start_spinner "Installiere Paket: $pkg"
         apt install -y "$pkg" &>/dev/null
@@ -831,7 +858,6 @@ verify_installation() {
 	echo -e ""
 }
 
-
 # Hauptfunktion
 main() {
     # Root-Check
@@ -890,6 +916,9 @@ main() {
     echo -e "${CYAN}${ARROW} Starte Installation...${NC}"
     echo ""
 
+	# Cursor verstecken während der Installation
+	tput civis												 
+			  
     # Schritte ausführen
     create_user
     configure_system
@@ -903,6 +932,9 @@ main() {
 
     # Überprüfung
     verify_installation
+	
+	# Cursor wieder einblenden
+    tput cnorm
 
     # In Benutzer-Shell wechseln
 	if id "$USERNAME" &>/dev/null; then
@@ -927,8 +959,7 @@ main() {
 				[[ '$INSTALL_BMAD' == 'true' ]] && echo -e \"  • npx bmad-method --help\"
 				[[ '$INSTALL_CLAUDE_CODE' == 'true' ]] && echo -e \"  • claude --help\"
 				[[ '$INSTALL_CLAUDE_FLOW' == 'true' ]] && echo -e \"  • claude-flow --help\"
-				echo
-
+				echo						   
 				exec bash --login
 			"
 		fi
